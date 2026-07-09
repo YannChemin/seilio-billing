@@ -78,4 +78,4 @@ If this tool is useful to you, tips are welcome:
 
 ## License
 
-Private tool for Seilio Douar E.I.; no license granted for reuse.
+[Unlicense](LICENSE) — public domain.
