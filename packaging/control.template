@@ -1,0 +1,15 @@
+Package: seilio-billing
+Version: @VERSION@
+Section: office
+Priority: optional
+Architecture: @ARCH@
+Depends: python3 (>= 3.11), python3-pyqt6, python3-sqlalchemy, python3-lxml
+Maintainer: Yann Chemin <ychemin@gmail.com>
+Installed-Size: @INSTALLED_SIZE@
+Description: Local billing and e-invoicing compliance tool for Seilio Douar E.I.
+ Desktop app for managing clients, quotes, invoices and bills, an
+ append-only livre de recettes (hash-chained register of receipts),
+ Factur-X (EN16931) e-invoice generation, turnover declaration helpers,
+ and import of the legacy LaTeX invoice archive. Not affiliated with any
+ Plateforme Agreee; see the in-app Settings tab for e-invoicing platform
+ registration guidance.

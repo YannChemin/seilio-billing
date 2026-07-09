@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Seilio Billing
+GenericName=Billing & e-invoicing compliance
+Comment=Livre de recettes, invoicing and Factur-X for Seilio Douar E.I.
+Exec=seilio-billing
+Icon=seilio-billing
+Terminal=false
+Categories=Office;Finance;
+StartupWMClass=seilio-billing

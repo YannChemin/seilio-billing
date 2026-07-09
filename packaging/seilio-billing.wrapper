@@ -1,0 +1,7 @@
+#!/bin/sh
+# Launcher installed at /usr/bin/seilio-billing. Vendored pure-Python deps
+# (facturx, pypdf, python-stdnum, reportlab) that aren't packaged in Debian
+# live under /usr/lib/seilio-billing/vendor; PyQt6/SQLAlchemy/lxml come from
+# the python3-pyqt6/python3-sqlalchemy/python3-lxml apt packages (Depends).
+exec env PYTHONPATH="/usr/lib/seilio-billing:/usr/lib/seilio-billing/vendor${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m seilio_billing.main "$@"

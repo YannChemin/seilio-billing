@@ -1,0 +1,21 @@
+[project]
+name = "seilio-billing"
+version = "0.1.0"
+description = "Local billing, livre de recettes and e-invoicing compliance tool for Seilio Douar E.I."
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6",
+    "SQLAlchemy",
+    "factur-x",
+    "reportlab",
+]
+
+[project.scripts]
+seilio-billing = "seilio_billing.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["seilio_billing*"]
