@@ -17,6 +17,16 @@ accreditation), so this tool focuses on what it *can* fully own: the livre
 de recettes, invoice/quote/bill tracking, Factur-X generation, turnover
 declaration help, and a connector seam for whichever PA you register with.
 
+## Screenshots
+
+| Linux (.deb) | Windows (.exe) |
+|---|---|
+| ![Linux dashboard](screenshots/linux_screenshot.png) | ![Windows dashboard](screenshots/windows_screenshot.png) |
+
+Same dashboard, same guided document flow, same Factur-X/Tiime behavior —
+the interface is identical across both builds (see [Windows
+build](#windows-build) below for how the `.exe` is produced and tested).
+
 ## Features
 
 - **Dashboard** — YTD revenue encaissé, drafts needing action, plafond tracker
