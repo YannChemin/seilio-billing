@@ -55,9 +55,41 @@ The package vendors the pure-Python runtime deps not available via apt
 `/usr/lib/seilio-billing/vendor`; PyQt6/SQLAlchemy/lxml come from apt via
 `Depends`. See `Makefile` (`make help`) for the full target list.
 
+## Windows build
+
+There's no macOS/Windows dev machine in this project's workflow, so the
+Windows `.exe` is built via GitHub Actions rather than locally:
+
+- `.github/workflows/windows-build.yml` runs on `windows-latest`, installs
+  the runtime deps with pip (all have Windows wheels — no compiler needed),
+  runs the test suite, then packages a single-file executable with
+  PyInstaller using `packaging/windows/seilio-billing.spec`.
+- `.github/workflows/deb-build.yml` does the equivalent for the `.deb` on
+  `ubuntu-latest`, including a smoke-test install of the built package.
+
+Both trigger on pushing a `v*` tag (and attach the build to the GitHub
+Release) or can be run manually from the Actions tab
+(`workflow_dispatch`). Artifacts are also uploaded per-run even without a
+tag, under the workflow's **Artifacts** section.
+
+If you do have access to a Windows machine and want to build locally instead:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install PyQt6 SQLAlchemy factur-x reportlab pyinstaller
+.venv\Scripts\pyinstaller packaging\windows\seilio-billing.spec --noconfirm
+# -> dist\seilio-billing.exe
+```
+
+The Windows build stores its data under `%APPDATA%\seilio-billing` instead
+of `~/.local/share` (see `seilio_billing/db.py`); everything else — the
+document flow, Factur-X generation, Tiime folder deposit — behaves
+identically to the Linux build.
+
 ## Data
 
-The SQLite database lives at `~/.local/share/seilio-billing/seilio_billing.sqlite3`.
+The SQLite database lives at `~/.local/share/seilio-billing/seilio_billing.sqlite3`
+(`%APPDATA%\seilio-billing\seilio_billing.sqlite3` on Windows).
 The ledger table (`ledger_entries`) is append-only by convention — the app
 never issues `UPDATE`/`DELETE` against it — so its hash chain stays a valid
 tamper-evidence proof as long as nothing edits the file out-of-band.

@@ -1,7 +1,9 @@
-"""Database engine/session setup. Single SQLite file under ~/.local/share."""
+"""Database engine/session setup. Single SQLite file under a per-OS data
+directory: ~/.local/share (XDG) on Linux, %APPDATA% on Windows."""
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
@@ -9,7 +11,12 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from seilio_billing.models import Base
 
-DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "seilio-billing"
+if sys.platform == "win32":
+    _DATA_HOME = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+else:
+    _DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+
+DATA_DIR = _DATA_HOME / "seilio-billing"
 DB_PATH = DATA_DIR / "seilio_billing.sqlite3"
 
 _engine = None
