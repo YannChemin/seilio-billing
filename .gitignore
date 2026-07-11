@@ -16,3 +16,4 @@ packaging/build/
 .vscode/
 *.swp
 .DS_Store
+git_tag.sh
