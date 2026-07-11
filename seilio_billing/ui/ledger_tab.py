@@ -18,10 +18,13 @@ from PyQt6.QtWidgets import (
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
-from seilio_billing.models import LedgerEntry
+from seilio_billing.i18n import tr
+from seilio_billing.models import Company, LedgerEntry
 from seilio_billing.ledger import check_integrity
 
-COLUMNS = ["Seq", "Date", "Amount (EUR)", "Nature", "Hash"]
+
+def _columns():
+    return [tr("ledger.col.seq"), tr("ledger.col.date"), tr("ledger.col.amount"), tr("ledger.col.nature"), tr("ledger.col.hash")]
 
 
 class LedgerTab(QWidget):
@@ -34,13 +37,13 @@ class LedgerTab(QWidget):
 
         top_row = QHBoxLayout()
         self.integrity_label = QLabel("")
-        check_btn = QPushButton("Check chain integrity")
+        check_btn = QPushButton(tr("ledger.btn.check"))
         check_btn.clicked.connect(self._check_integrity)
-        export_csv_btn = QPushButton("Export CSV")
+        export_csv_btn = QPushButton(tr("ledger.btn.export_csv"))
         export_csv_btn.clicked.connect(self._export_csv)
-        export_pdf_btn = QPushButton("Export PDF")
+        export_pdf_btn = QPushButton(tr("ledger.btn.export_pdf"))
         export_pdf_btn.clicked.connect(self._export_pdf)
-        refresh_btn = QPushButton("Refresh")
+        refresh_btn = QPushButton(tr("ledger.btn.refresh"))
         refresh_btn.clicked.connect(self.refresh)
         top_row.addWidget(check_btn)
         top_row.addWidget(export_csv_btn)
@@ -50,8 +53,9 @@ class LedgerTab(QWidget):
         layout.addLayout(top_row)
         layout.addWidget(self.integrity_label)
 
-        self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
+        columns = _columns()
+        self.table = QTableWidget(0, len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
@@ -72,12 +76,12 @@ class LedgerTab(QWidget):
     def _check_integrity(self):
         result = check_integrity(self.session)
         if result.ok:
-            self.integrity_label.setText(f"✔ Chain intact — {result.checked} entries verified.")
+            self.integrity_label.setText(tr("ledger.integrity.ok", n=result.checked))
         else:
-            self.integrity_label.setText(f"✘ TAMPERING DETECTED — {result.detail}")
+            self.integrity_label.setText(tr("ledger.integrity.bad", detail=result.detail))
 
     def _export_csv(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Export livre de recettes (CSV)", "livre_de_recettes.csv", "CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, tr("ledger.export_csv.dialog_title"), "livre_de_recettes.csv", "CSV (*.csv)")
         if not path:
             return
         entries = self._entries()
@@ -86,18 +90,20 @@ class LedgerTab(QWidget):
             writer.writerow(["Seq", "Date", "Amount (EUR)", "Nature", "Hash", "Prev hash"])
             for e in entries:
                 writer.writerow([e.seq, e.date.isoformat(), f"{e.amount:.2f}", e.nature, e.hash, e.prev_hash])
-        QMessageBox.information(self, "Exported", f"Livre de recettes exported to {path}")
+        QMessageBox.information(self, tr("ledger.exported.title"), tr("ledger.exported.body", path=path))
 
     def _export_pdf(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Export livre de recettes (PDF)", "livre_de_recettes.pdf", "PDF (*.pdf)")
+        path, _ = QFileDialog.getSaveFileName(self, tr("ledger.export_pdf.dialog_title"), "livre_de_recettes.pdf", "PDF (*.pdf)")
         if not path:
             return
         entries = self._entries()
         c = canvas.Canvas(path, pagesize=A4)
         width, height = A4
         y = height - 50
+        company = self.session.query(Company).first()
+        company_name = company.name if company and company.name else "Seilio Douar E.I."
         c.setFont("Helvetica-Bold", 14)
-        c.drawString(40, y, "Livre de recettes — Seilio Douar E.I.")
+        c.drawString(40, y, f"Livre de recettes — {company_name}")
         y -= 30
         c.setFont("Helvetica-Bold", 9)
         c.drawString(40, y, "Seq")
@@ -119,4 +125,4 @@ class LedgerTab(QWidget):
             c.drawString(430, y, e.hash[:20] + "…")
             y -= 13
         c.save()
-        QMessageBox.information(self, "Exported", f"Livre de recettes exported to {path}")
+        QMessageBox.information(self, tr("ledger.exported.title"), tr("ledger.exported.body", path=path))

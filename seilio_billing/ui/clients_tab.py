@@ -16,14 +16,23 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 
+from seilio_billing.i18n import tr
 from seilio_billing.models import Client
 
-COLUMNS = [
-    "Name", "Contact", "Position", "Phone (fixed)", "Phone (mobile)",
-    "Email", "City", "Country", "VAT number", "Website",
-]
 
-TITLES = ["", "Mr", "Mrs", "Ms", "Dr", "Prof"]
+def _columns():
+    return [
+        tr("clients.col.name"), tr("clients.col.contact"), tr("clients.col.position"),
+        tr("clients.col.phone_fixed"), tr("clients.col.phone_mobile"), tr("clients.col.email"),
+        tr("clients.col.city"), tr("clients.col.country"), tr("clients.col.vat"), tr("clients.col.website"),
+    ]
+
+
+def _titles():
+    return [
+        tr("clients.title."), tr("clients.title.mr"), tr("clients.title.mrs"),
+        tr("clients.title.ms"), tr("clients.title.dr"), tr("clients.title.prof"),
+    ]
 
 
 class ClientsTab(QWidget):
@@ -35,8 +44,9 @@ class ClientsTab(QWidget):
 
         layout = QHBoxLayout(self)
 
-        self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
+        columns = _columns()
+        self.table = QTableWidget(0, len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -48,7 +58,7 @@ class ClientsTab(QWidget):
         form_container = QWidget()
         form_layout = QVBoxLayout(form_container)
 
-        company_box = QGroupBox("Client / company")
+        company_box = QGroupBox(tr("clients.box.company"))
         company_form = QFormLayout(company_box)
         self.name_edit = QLineEdit()
         self.address_edit = QLineEdit()
@@ -58,45 +68,45 @@ class ClientsTab(QWidget):
         self.vat_edit = QLineEdit()
         self.website_edit = QLineEdit()
         self.website_edit.setPlaceholderText("https://…")
-        company_form.addRow("Name", self.name_edit)
-        company_form.addRow("Address", self.address_edit)
-        company_form.addRow("Postal code", self.postal_edit)
-        company_form.addRow("City", self.city_edit)
-        company_form.addRow("Country", self.country_edit)
-        company_form.addRow("VAT number", self.vat_edit)
-        company_form.addRow("Website", self.website_edit)
+        company_form.addRow(tr("clients.field.name"), self.name_edit)
+        company_form.addRow(tr("clients.field.address"), self.address_edit)
+        company_form.addRow(tr("clients.field.postal_code"), self.postal_edit)
+        company_form.addRow(tr("clients.field.city"), self.city_edit)
+        company_form.addRow(tr("clients.field.country"), self.country_edit)
+        company_form.addRow(tr("clients.field.vat"), self.vat_edit)
+        company_form.addRow(tr("clients.field.website"), self.website_edit)
         form_layout.addWidget(company_box)
 
-        contact_box = QGroupBox("Contact person")
+        contact_box = QGroupBox(tr("clients.box.contact"))
         contact_form = QFormLayout(contact_box)
         self.title_combo = QComboBox()
-        self.title_combo.addItems(TITLES)
+        self.title_combo.addItems(_titles())
         self.title_combo.setEditable(True)
         self.contact_name_edit = QLineEdit()
         self.position_edit = QLineEdit()
         self.phone_fixed_edit = QLineEdit()
         self.phone_mobile_edit = QLineEdit()
         self.email_edit = QLineEdit()
-        contact_form.addRow("Title", self.title_combo)
-        contact_form.addRow("Contact name", self.contact_name_edit)
-        contact_form.addRow("Position", self.position_edit)
-        contact_form.addRow("Phone (fixed)", self.phone_fixed_edit)
-        contact_form.addRow("Phone (mobile)", self.phone_mobile_edit)
-        contact_form.addRow("Email", self.email_edit)
+        contact_form.addRow(tr("clients.field.title"), self.title_combo)
+        contact_form.addRow(tr("clients.field.contact_name"), self.contact_name_edit)
+        contact_form.addRow(tr("clients.field.position"), self.position_edit)
+        contact_form.addRow(tr("clients.field.phone_fixed"), self.phone_fixed_edit)
+        contact_form.addRow(tr("clients.field.phone_mobile"), self.phone_mobile_edit)
+        contact_form.addRow(tr("clients.field.email"), self.email_edit)
         form_layout.addWidget(contact_box)
 
-        notes_box = QGroupBox("Notes")
+        notes_box = QGroupBox(tr("clients.box.notes"))
         notes_form = QFormLayout(notes_box)
         self.notes_edit = QLineEdit()
         notes_form.addRow(self.notes_edit)
         form_layout.addWidget(notes_box)
 
         btn_row = QHBoxLayout()
-        self.save_btn = QPushButton("Save")
+        self.save_btn = QPushButton(tr("clients.btn.save"))
         self.save_btn.clicked.connect(self._save)
-        self.new_btn = QPushButton("New")
+        self.new_btn = QPushButton(tr("clients.btn.new"))
         self.new_btn.clicked.connect(self._clear_form)
-        self.delete_btn = QPushButton("Delete")
+        self.delete_btn = QPushButton(tr("clients.btn.delete"))
         self.delete_btn.clicked.connect(self._delete)
         btn_row.addWidget(self.new_btn)
         btn_row.addWidget(self.save_btn)
@@ -172,7 +182,7 @@ class ClientsTab(QWidget):
     def _save(self):
         name = self.name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "Missing name", "Client name is required.")
+            QMessageBox.warning(self, tr("clients.err.missing_name.title"), tr("clients.err.missing_name.body"))
             return
         if self._editing_id is not None:
             client = self.session.get(Client, self._editing_id)
@@ -205,7 +215,7 @@ class ClientsTab(QWidget):
             return
         if client.documents:
             QMessageBox.warning(
-                self, "Cannot delete", "This client has documents attached; remove those first."
+                self, tr("clients.err.cannot_delete.title"), tr("clients.err.cannot_delete.body")
             )
             return
         self.session.delete(client)

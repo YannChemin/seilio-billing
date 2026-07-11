@@ -52,6 +52,7 @@ class Company(Base):
     iban: Mapped[str] = mapped_column(default="")
     bic: Mapped[str] = mapped_column(default="")
     bank_name: Mapped[str] = mapped_column(default="")
+    tiime_export_dir: Mapped[str] = mapped_column(default="")
 
 
 class Client(Base):
@@ -92,6 +93,11 @@ class Document(Base):
     )
     currency: Mapped[str] = mapped_column(default="EUR")
     source_path: Mapped[str | None] = mapped_column(default=None)
+
+    issued_at: Mapped[dt.datetime | None] = mapped_column(default=None)
+    pdf_export_path: Mapped[str | None] = mapped_column(default=None)
+    facturx_export_path: Mapped[str | None] = mapped_column(default=None)
+    tiime_deposited_at: Mapped[dt.datetime | None] = mapped_column(default=None)
 
     client: Mapped[Client | None] = relationship(back_populates="documents")
     line_items: Mapped[list["LineItem"]] = relationship(

@@ -26,6 +26,7 @@ declaration help, and a connector seam for whichever PA you register with.
 - **Factur-X export** — EN16931-compliant hybrid PDF+XML e-invoices, ready for the 2027 issuance mandate
 - **Declarations** — monthly/quarterly revenue encaissé matching the Urssaf micro-entrepreneur CA declaration cadence
 - **Settings** — company identity, plus a PA registration checklist and a `PAConnector` abstraction to wire in once you've picked a Plateforme Agréée
+- **Interface language** — the app UI (menus, labels, buttons, dialogs) can be switched between English, French, Breton, Gallo and Welsh in Settings. This only changes the *interface* — generated quotes/invoices/bills and the Factur-X e-invoice content are always produced in French, since that's the language required for these legal documents regardless of which language you use to operate the app.
 
 ## Requirements
 

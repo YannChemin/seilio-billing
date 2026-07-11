@@ -58,6 +58,7 @@ PA_REGISTRATION_CHECKLIST = [
     "Once you have API credentials, implement a PAConnector subclass for that "
     "PA in seilio_billing/pa_connector.py and wire it into Settings in place of "
     "ManualPAConnector.",
-    "Until then, use the Factur-X export tab to generate compliant invoices and "
-    "the ManualPAConnector export folder to hand them to your chosen PA manually.",
+    "Until then, issuing an invoice already generates a compliant Factur-X file "
+    "and deposits it in your Tiime folder (see Settings); hand that file to your "
+    "chosen PA manually if/when required.",
 ]

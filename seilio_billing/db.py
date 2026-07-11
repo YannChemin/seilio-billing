@@ -54,6 +54,25 @@ def _migrate_schema(engine) -> None:
             if column not in existing_columns:
                 conn.execute(text(f"ALTER TABLE clients ADD COLUMN {column} {col_type} DEFAULT ''"))
 
+    if "company" in inspector.get_table_names():
+        company_columns = {col["name"] for col in inspector.get_columns("company")}
+        with engine.begin() as conn:
+            if "tiime_export_dir" not in company_columns:
+                conn.execute(text("ALTER TABLE company ADD COLUMN tiime_export_dir VARCHAR DEFAULT ''"))
+
+    if "documents" in inspector.get_table_names():
+        doc_columns = {col["name"] for col in inspector.get_columns("documents")}
+        doc_new_columns = {
+            "issued_at": "DATETIME",
+            "pdf_export_path": "VARCHAR",
+            "facturx_export_path": "VARCHAR",
+            "tiime_deposited_at": "DATETIME",
+        }
+        with engine.begin() as conn:
+            for column, col_type in doc_new_columns.items():
+                if column not in doc_columns:
+                    conn.execute(text(f"ALTER TABLE documents ADD COLUMN {column} {col_type}"))
+
 
 def init_db(db_path: Path | None = None) -> None:
     engine = get_engine(db_path)

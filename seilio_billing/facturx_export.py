@@ -1,10 +1,12 @@
-"""Generate a Factur-X (hybrid PDF + embedded EN16931/CII XML) invoice.
+"""Generate the quote/invoice/bill PDF and, for invoices, the Factur-X
+(hybrid PDF + embedded EN16931/CII XML) e-invoice.
 
-Renders a plain PDF with reportlab, builds a minimal 'basic' level CII data
-dict (line items included, French VAT-franchise exemption noted), and
-embeds the XML into the PDF via the `factur-x` library so the result is
-ready to hand to a Plateforme Agréée once one is wired up (see the Settings
-tab's PA setup panel).
+The PDF is built entirely in-app with reportlab's platypus layout engine —
+no external LaTeX or other document tool is involved. `render_document_pdf`
+produces the visual document (used for quotes, bills, previews, and as the
+base PDF for invoices); `generate_facturx_pdf` embeds EN16931 CII XML into
+that same PDF via the `factur-x` library so the result is ready to hand to
+a Plateforme Agréée once one is wired up (see the Settings tab).
 """
 from __future__ import annotations
 
@@ -12,72 +14,194 @@ import datetime as dt
 import io
 
 from facturx import generate_cii_xml, generate_from_binary
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    HRFlowable,
+)
 
-from seilio_billing.models import Company, Document
+from seilio_billing.models import Company, Document, DocumentType
 
 VAT_EXEMPTION_TEXT = "TVA non applicable, art. 293 B du CGI"
 
+DOC_TITLES = {
+    DocumentType.quote: "DEVIS",
+    DocumentType.invoice: "FACTURE",
+    DocumentType.bill: "NOTE",
+}
 
-def _render_pdf(company: Company, document: Document) -> bytes:
+INK = colors.HexColor("#1a1a1a")
+MUTED = colors.HexColor("#6b6b6b")
+ACCENT = colors.HexColor("#2f5d8a")
+RULE = colors.HexColor("#d9d9d9")
+HEAD_BG = colors.HexColor("#f2f4f6")
+
+
+def _styles() -> dict[str, ParagraphStyle]:
+    return {
+        "company": ParagraphStyle("company", fontName="Helvetica-Bold", fontSize=14, textColor=INK, leading=17),
+        "small": ParagraphStyle("small", fontName="Helvetica", fontSize=8.5, textColor=MUTED, leading=12),
+        "doctitle": ParagraphStyle(
+            "doctitle", fontName="Helvetica-Bold", fontSize=20, textColor=ACCENT, alignment=TA_RIGHT, leading=22
+        ),
+        "docmeta": ParagraphStyle("docmeta", fontName="Helvetica", fontSize=9, textColor=INK, alignment=TA_RIGHT, leading=13),
+        "sectionlabel": ParagraphStyle("sectionlabel", fontName="Helvetica-Bold", fontSize=8.5, textColor=MUTED, leading=11),
+        "client": ParagraphStyle("client", fontName="Helvetica-Bold", fontSize=10.5, textColor=INK, leading=13),
+        "clientsmall": ParagraphStyle("clientsmall", fontName="Helvetica", fontSize=9, textColor=INK, leading=13),
+        "cell": ParagraphStyle("cell", fontName="Helvetica", fontSize=9, textColor=INK, leading=12),
+        "cellhead": ParagraphStyle("cellhead", fontName="Helvetica-Bold", fontSize=8.5, textColor=MUTED, leading=11),
+        "total": ParagraphStyle("total", fontName="Helvetica-Bold", fontSize=11, textColor=INK, alignment=TA_RIGHT),
+        "footer": ParagraphStyle("footer", fontName="Helvetica", fontSize=8, textColor=MUTED, leading=11),
+    }
+
+
+def render_document_pdf(company: Company, document: Document) -> bytes:
+    """Render a modern, single-page, factual PDF for any document type
+    (quote, invoice, bill). Pure in-app layout — no external tool."""
+    s = _styles()
     buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    width, height = A4
-    y = height - 60
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=20 * mm,
+        rightMargin=20 * mm,
+        topMargin=18 * mm,
+        bottomMargin=16 * mm,
+        title=f"{DOC_TITLES.get(document.type, 'DOCUMENT')} {document.number or document.id}",
+    )
+    story = []
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(40, y, company.name)
-    y -= 20
-    c.setFont("Helvetica", 9)
+    company_lines = [Paragraph(company.name, s["company"])]
     for line in (
         company.address_line,
-        f"{company.postal_code} {company.city}, {company.country}",
-        f"SIRET: {company.siret}    VAT: {company.vat_number}",
+        f"{company.postal_code} {company.city}, {company.country}".strip(", "),
+        f"SIRET {company.siret}" + (f"  ·  TVA {company.vat_number}" if company.vat_number else ""),
+        " · ".join(p for p in (company.email, company.phone) if p),
     ):
-        c.drawString(40, y, line)
-        y -= 13
+        if line and line.strip(" ,·"):
+            company_lines.append(Paragraph(line, s["small"]))
 
-    y -= 10
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(40, y, f"FACTURE {document.number or document.id}")
-    y -= 18
-    c.setFont("Helvetica", 9)
-    c.drawString(40, y, f"Date: {document.issue_date.isoformat()}")
-    y -= 13
-    if document.client:
-        client = document.client
-        c.drawString(40, y, f"Client: {client.name}")
-        y -= 13
-        if client.vat_number:
-            c.drawString(40, y, f"VAT: {client.vat_number}")
-            y -= 13
+    doc_title = DOC_TITLES.get(document.type, "DOCUMENT")
+    meta_lines = [Paragraph(doc_title, s["doctitle"])]
+    meta_lines.append(Spacer(1, 4))
+    meta_lines.append(Paragraph(f"N&deg; {document.number or document.id}", s["docmeta"]))
+    meta_lines.append(Paragraph(f"Date : {document.issue_date.isoformat()}", s["docmeta"]))
+    if document.title:
+        meta_lines.append(Paragraph(document.title, s["docmeta"]))
 
-    y -= 15
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(40, y, "Description")
-    c.drawString(300, y, "Qty")
-    c.drawString(360, y, "Rate")
-    c.drawString(440, y, "Amount")
-    y -= 14
-    c.setFont("Helvetica", 9)
+    header = Table(
+        [[company_lines, meta_lines]],
+        colWidths=[(doc.width) * 0.55, (doc.width) * 0.45],
+    )
+    header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(header)
+    story.append(Spacer(1, 14))
+    story.append(HRFlowable(width="100%", thickness=1, color=RULE))
+    story.append(Spacer(1, 12))
+
+    client = document.client
+    client_block = [Paragraph("DESTINATAIRE", s["sectionlabel"]), Spacer(1, 3)]
+    if client:
+        client_block.append(Paragraph(client.name, s["client"]))
+        for line in (
+            client.address_line,
+            f"{client.postal_code} {client.city}".strip(),
+            client.country,
+            f"TVA {client.vat_number}" if client.vat_number else "",
+            f"{client.title} {client.contact_name}".strip() if client.contact_name else "",
+        ):
+            if line and line.strip():
+                client_block.append(Paragraph(line, s["clientsmall"]))
+    else:
+        client_block.append(Paragraph("—", s["clientsmall"]))
+    story.append(Table([[client_block]], colWidths=[doc.width]))
+    story.append(Spacer(1, 16))
+
+    head = [
+        Paragraph("DESCRIPTION", s["cellhead"]),
+        Paragraph("QTÉ", s["cellhead"]),
+        Paragraph("UNITÉ", s["cellhead"]),
+        Paragraph("PRIX UNIT.", s["cellhead"]),
+        Paragraph("MONTANT", s["cellhead"]),
+    ]
+    rows = [head]
     for li in document.line_items:
-        c.drawString(40, y, (li.description or "")[:45])
-        c.drawString(300, y, f"{li.quantity:g}")
-        c.drawString(360, y, f"{li.unit_rate:.2f}")
-        c.drawString(440, y, f"{li.amount():.2f}")
-        y -= 13
+        rows.append(
+            [
+                Paragraph(li.description or "", s["cell"]),
+                Paragraph(f"{li.quantity:g}", s["cell"]),
+                Paragraph(li.unit or "", s["cell"]),
+                Paragraph(f"{li.unit_rate:,.2f}".replace(",", " "), s["cell"]),
+                Paragraph(f"{li.amount():,.2f}".replace(",", " "), s["cell"]),
+            ]
+        )
+    col_widths = [doc.width * 0.46, doc.width * 0.10, doc.width * 0.12, doc.width * 0.16, doc.width * 0.16]
+    line_table = Table(rows, colWidths=col_widths, repeatRows=1)
+    line_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.75, RULE),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.5, RULE),
+                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("ALIGN", (0, 0), (0, -1), "LEFT"),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(line_table)
+    story.append(Spacer(1, 10))
 
-    y -= 10
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(360, y, "Total EUR")
-    c.drawString(440, y, f"{document.total():.2f}")
-    y -= 20
-    c.setFont("Helvetica", 8)
-    c.drawString(40, y, VAT_EXEMPTION_TEXT)
+    total = document.total()
+    total_table = Table(
+        [
+            ["Total HT", f"{total:,.2f} {document.currency}".replace(",", " ")],
+            ["TVA", "0,00 " + document.currency],
+            ["Total TTC", f"{total:,.2f} {document.currency}".replace(",", " ")],
+        ],
+        colWidths=[doc.width * 0.75, doc.width * 0.25],
+    )
+    total_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("FONTNAME", (0, 0), (-1, 1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, 1), 9.5),
+                ("TEXTCOLOR", (0, 0), (-1, 1), MUTED),
+                ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 2), (-1, 2), 12),
+                ("TEXTCOLOR", (0, 2), (-1, 2), INK),
+                ("LINEABOVE", (0, 2), (-1, 2), 0.75, RULE),
+                ("TOPPADDING", (0, 2), (-1, 2), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(total_table)
+    story.append(Spacer(1, 18))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
+    story.append(Spacer(1, 8))
 
-    c.showPage()
-    c.save()
+    footer_lines = [VAT_EXEMPTION_TEXT]
+    if document.type == DocumentType.invoice:
+        footer_lines.append("Délai de paiement : 30 jours. Pénalité de retard : taux BCE + 10 points. Indemnité forfaitaire de recouvrement : 40 €.")
+    if company.iban:
+        footer_lines.append(f"IBAN {company.iban}" + (f"  ·  BIC {company.bic}" if company.bic else "") + (f"  ·  {company.bank_name}" if company.bank_name else ""))
+    for line in footer_lines:
+        story.append(Paragraph(line, s["footer"]))
+        story.append(Spacer(1, 2))
+
+    doc.build(story)
     return buf.getvalue()
 
 
@@ -154,7 +278,7 @@ def build_cii_data_dict(company: Company, document: Document) -> dict:
 
 def generate_facturx_pdf(company: Company, document: Document, level: str = "en16931") -> bytes:
     """Return the bytes of a Factur-X-compliant PDF for the given invoice."""
-    pdf_bytes = _render_pdf(company, document)
+    pdf_bytes = render_document_pdf(company, document)
     data_dict = build_cii_data_dict(company, document)
     xml_bytes = generate_cii_xml(data_dict, level=level, check_xsd=True)
     facturx_pdf = generate_from_binary(

@@ -15,13 +15,12 @@ from PyQt6.QtWidgets import (
     QComboBox,
 )
 
+from seilio_billing.i18n import tr
 from seilio_billing.models import LedgerEntry
 
 # 2026 micro-entrepreneur turnover ceilings (services / BIC-BNC prestations de services)
 # https://www.economie.gouv.fr - update yearly if the plafond changes.
 PLAFOND_SERVICES = 77_700.0
-
-COLUMNS = ["Period", "Revenue encaissé (EUR)"]
 
 
 class DeclarationsTab(QWidget):
@@ -34,11 +33,11 @@ class DeclarationsTab(QWidget):
 
         top_row = QHBoxLayout()
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Monthly", "Quarterly"])
+        self.mode_combo.addItems([tr("declarations.monthly"), tr("declarations.quarterly")])
         self.mode_combo.currentIndexChanged.connect(self.refresh)
-        refresh_btn = QPushButton("Refresh")
+        refresh_btn = QPushButton(tr("declarations.refresh"))
         refresh_btn.clicked.connect(self.refresh)
-        top_row.addWidget(QLabel("Group by"))
+        top_row.addWidget(QLabel(tr("declarations.group_by")))
         top_row.addWidget(self.mode_combo)
         top_row.addWidget(refresh_btn)
         top_row.addStretch()
@@ -47,8 +46,9 @@ class DeclarationsTab(QWidget):
         self.ytd_label = QLabel("")
         layout.addWidget(self.ytd_label)
 
-        self.table = QTableWidget(0, len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
+        columns = [tr("declarations.col.period"), tr("declarations.col.revenue")]
+        self.table = QTableWidget(0, len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
@@ -62,7 +62,7 @@ class DeclarationsTab(QWidget):
         return f"{date.year}-{date.month:02d}"
 
     def refresh(self):
-        quarterly = self.mode_combo.currentText() == "Quarterly"
+        quarterly = self.mode_combo.currentText() == tr("declarations.quarterly")
         entries = self.session.query(LedgerEntry).all()
         totals: dict[str, float] = defaultdict(float)
         for e in entries:
@@ -77,8 +77,4 @@ class DeclarationsTab(QWidget):
         current_year = dt.date.today().year
         ytd = sum(e.amount for e in entries if e.date.year == current_year)
         pct = (ytd / PLAFOND_SERVICES) * 100 if PLAFOND_SERVICES else 0
-        self.ytd_label.setText(
-            f"YTD {current_year}: {ytd:.2f} EUR encaissé — "
-            f"{pct:.1f}% of the {PLAFOND_SERVICES:.0f} EUR micro-entrepreneur services ceiling "
-            f"(verify current plafond on economie.gouv.fr)"
-        )
+        self.ytd_label.setText(tr("declarations.ytd", year=current_year, ytd=ytd, pct=pct, ceiling=PLAFOND_SERVICES))
