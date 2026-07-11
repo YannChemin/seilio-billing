@@ -22,7 +22,12 @@ jobs:
       - name: Install runtime + build deps
         run: |
           python -m pip install --upgrade pip
-          pip install PyQt6 SQLAlchemy factur-x reportlab pyinstaller pytest
+          # PyQt6-Qt6 > 6.7.x links Qt6Core.dll against icuuc.dll but the
+          # wheel ships no ICU binaries at all, so the exe fails to start
+          # with "DLL load failed: Module not found" on both Wine and real
+          # Windows. 6.7.1 predates that regression. Bump only once a newer
+          # PyQt6-Qt6 wheel is confirmed to bundle its own ICU DLLs.
+          pip install "PyQt6==6.7.1" SQLAlchemy factur-x reportlab pyinstaller pytest
 
       - name: Run test suite
         env:
